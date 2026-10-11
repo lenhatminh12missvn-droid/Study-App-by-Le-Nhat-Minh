@@ -11,7 +11,7 @@
   try { const saved=JSON.parse(localStorage.getItem(CAL_KEY)||'[]'); if(Array.isArray(saved)) events=saved.filter(e=>e&&typeof e.title==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(e.date)); } catch {}
   let viewed=new Date(); viewed.setDate(1);
   let selectedDate=today();
-  const saveEvents=()=>localStorage.setItem(CAL_KEY,JSON.stringify(events));
+  const saveEvents=()=>{localStorage.setItem(CAL_KEY,JSON.stringify(events));window.dispatchEvent(new CustomEvent('study-rpg-local-change'));};
   const monthKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   const dateLabel=value=>new Date(value+'T12:00:00').toLocaleDateString('vi-VN',{weekday:'long',day:'numeric',month:'long'});
   function renderCalendar(){
@@ -84,7 +84,7 @@
   try{const raw=JSON.parse(localStorage.getItem(QUIZ_HISTORY_KEY)||'[]');if(Array.isArray(raw))quizHistory=raw.filter(x=>typeof x==='string').slice(-1000);}catch{}
   let activeAIQuiz=[]; let quizSubmitted=false;
   const normalizeQuestion=s=>String(s||'').toLocaleLowerCase('vi').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();
-  const saveQuizHistory=()=>{quizHistory=Array.from(new Set(quizHistory)).slice(-1000);localStorage.setItem(QUIZ_HISTORY_KEY,JSON.stringify(quizHistory));if($('aiQuizHistoryCount'))$('aiQuizHistoryCount').textContent=`${quizHistory.length} câu đã ghi nhận`;};
+  const saveQuizHistory=()=>{quizHistory=Array.from(new Set(quizHistory)).slice(-1000);localStorage.setItem(QUIZ_HISTORY_KEY,JSON.stringify(quizHistory));window.dispatchEvent(new CustomEvent('study-rpg-local-change'));if($('aiQuizHistoryCount'))$('aiQuizHistoryCount').textContent=`${quizHistory.length} câu đã ghi nhận`;};
   const setQuizStatus=t=>{if($('aiQuizStatus'))$('aiQuizStatus').textContent=t;};
   function renderAIQuiz(){
     const out=$('aiQuizOutput');if(!out)return;
@@ -121,3 +121,4 @@
   if($('aiQuizClearHistory'))$('aiQuizClearHistory').addEventListener('click',()=>{if(confirm('Xóa lịch sử câu hỏi đã dùng? Các quiz sau có thể tạo lại câu cũ.')){quizHistory=[];saveQuizHistory();toast('Đã xóa lịch sử câu hỏi.');}});
 
 })();
+

@@ -129,6 +129,29 @@ body.wallpaper-active::before {
 
 
 
+/* Wallpaper layer — keep the app layout unchanged */
+body.wallpaper-active {
+  background-color: var(--bg);
+  background-image: none;
+}
+
+body.wallpaper-active::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      var(--wallpaper-tint, rgba(5, 9, 18, 0.34)),
+      var(--wallpaper-tint, rgba(5, 9, 18, 0.34))
+    ),
+    var(--wallpaper-image);
+  background-position: center, center;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
+}
+
 
 
 

@@ -128,3 +128,33 @@ body.wallpaper-active::before {
   background-position: center;
   background-repeat: no-repeat;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Wallpaper fix v2 */
+body.wallpaper-active {
+  position: relative;
+  isolation: isolate;
+  background-image: none !important;
+}
+
+body.wallpaper-active::before {
+  z-index: 0 !important;
+}
+
+body.wallpaper-active > * {
+  position: relative;
+  z-index: 1;
+}
+

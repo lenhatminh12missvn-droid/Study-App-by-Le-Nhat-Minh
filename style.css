@@ -104,29 +104,25 @@ body.focus-mode{background:radial-gradient(ellipse at center,#273a60,#0b1020)!im
 
 
 
-/* FIX: Study RPG wallpaper rendering */
+
+/* FIX: Study App macOS wallpaper */
 body.wallpaper-active {
   background-color: var(--bg) !important;
-  background-image: none !important;
-  position: relative;
-  isolation: isolate;
-}
-
-body.wallpaper-active::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
   background-image:
     linear-gradient(
       var(--wallpaper-tint, rgba(5, 9, 18, 0.34)),
       var(--wallpaper-tint, rgba(5, 9, 18, 0.34))
     ),
-    var(--wallpaper-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+    var(--wallpaper-image) !important;
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  background-attachment: fixed, fixed;
+}
+
+/* Không tạo thêm lớp phủ pseudo-element */
+body.wallpaper-active::before {
+  content: none !important;
 }
 
 

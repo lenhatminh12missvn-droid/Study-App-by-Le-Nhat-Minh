@@ -3,20 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Study App</title>
+  <title>Study RPG — God Mode</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="mac-desktop">
-  <div class="mac-menubar"><div class="mac-menu-left"><span class="apple-mark">●</span><strong>Study App by Le Nhat Minh</strong><span></span><span></span><span></span><span></span><span></span></div><div class="mac-menu-right"><button id="authOpenBtn" class="auth-menu-btn">Đăng nhập Google</button><span>⌁</span><span>◉</span><span id="macMenuClock">CN 14:00</span></div></div>
+  <div class="mac-menubar"><div class="mac-menu-left"><span class="apple-mark">●</span><strong>Study RPG</strong><span>Tệp</span><span>Sửa</span><span>Xem</span><span>Cửa sổ</span><span>Trợ giúp</span></div><div class="mac-menu-right"><button id="authOpenBtn" class="auth-menu-btn">Đăng nhập Google</button><span>⌁</span><span>◉</span><span id="macMenuClock">CN 14:00</span></div></div>
   <div class="mac-desktop-hint">STUDY RPG WORKSPACE</div>
   <div class="desktop-glow glow-one"></div><div class="desktop-glow glow-two"></div>
   <aside class="sidebar glass">
-    <div class="brand"><div class="brand-icon">✦</div><div><strong>Study App</strong><small>GOLD MODE</small></div></div>
+    <div class="brand"><div class="brand-icon">✦</div><div><strong>Study RPG</strong><small>GOD MODE</small></div></div>
     <div class="user-mini"><div class="avatar-face" id="miniAvatar">🧑‍🚀</div><div class="user-mini-text"><b id="miniName">Nhà thám hiểm</b><small id="miniRank">Rank C · Lv. 1</small><small id="authUserEmail" class="auth-user-email">Chưa đăng nhập</small></div><span class="online-dot"></span></div>
     <nav class="nav">
       <button class="nav-link active" data-page="home"><span>⌂</span>Trang chủ</button>
       <button class="nav-link" data-page="missions"><span>◎</span>Nhiệm vụ</button>
       <button class="nav-link" data-page="aiquiz"><span>✦</span>Quiz AI</button>
+      <button class="nav-link" data-page="leaderboard"><span>🏆</span>Bảng xếp hạng</button>
       <button class="nav-link" data-page="dashboard"><span>▥</span>Thống kê</button>
       <button class="nav-link" data-page="calendar"><span>▦</span>Lịch học</button>
       <button class="nav-link" data-page="boss"><span>♜</span>Boss tuần</button>
@@ -81,6 +82,12 @@
         </article>
         <article class="panel glass aiquiz-result-panel"><div class="panel-heading"><h2>🧠 Bài quiz của bạn</h2><span class="muted" id="aiQuizStatus">Sẵn sàng</span></div><div id="aiQuizOutput"><div class="empty-state"><strong>Chưa có quiz</strong><p>Chọn lớp, môn, chủ đề rồi nhấn “Tạo quiz mới”.</p></div></div></article>
       </div>
+    </section>
+
+    <section class="page" id="page-leaderboard">
+      <div class="page-heading"><p class="eyebrow">WEEKLY LEAGUE</p><h1>🏆 Bảng xếp hạng</h1><p class="muted">Thi đua bằng XP học tập trong 7 ngày gần nhất. Chỉ hiển thị tên và tiến độ công khai, không hiển thị email.</p></div>
+      <div class="leaderboard-hero panel glass"><div><span class="eyebrow">LEAGUE SEASON</span><h2>🚀 Study League</h2><p class="muted">Học đều mỗi ngày để leo hạng cùng bạn bè.</p></div><div class="league-pill" id="myLeague">Chưa xếp hạng</div></div>
+      <article class="panel glass leaderboard-panel"><div class="panel-heading"><div><h2>⭐ Top người học</h2><p class="muted">Xếp theo XP học được trong 7 ngày gần nhất</p></div><button class="secondary-btn" id="refreshLeaderboard" type="button">↻ Làm mới</button></div><div id="leaderboardStatus" class="muted leaderboard-status">Đăng nhập Google để xem bảng xếp hạng.</div><div id="leaderboardList" class="leaderboard-list"><div class="empty-state">Bảng xếp hạng sẽ xuất hiện ở đây.</div></div><p class="muted leaderboard-footnote">Bảng xếp hạng hiện là phiên bản cơ bản; điểm do trình duyệt gửi lên chưa có cơ chế chống gian lận phía máy chủ.</p></article>
     </section>
 
     <section class="page" id="page-dashboard"><div class="page-heading"><p class="eyebrow">ANALYTICS</p><h1>📊 Dashboard</h1><p class="muted">Tổng hợp quá trình học tập của bạn trên thiết bị này.</p></div><div class="stats-grid" id="dashboardStats"></div><div class="dashboard-grid"><article class="panel glass"><div class="panel-heading"><h2>📅 7 ngày gần nhất</h2><span class="muted">Phút học/ngày</span></div><div class="chart" id="weeklyChart"></div></article><article class="panel glass"><div class="panel-heading"><h2>🏅 Kỷ lục cá nhân</h2></div><div id="personalRecords" class="record-list"></div></article></div><article class="panel glass"><div class="panel-heading"><h2>🗂️ Lịch sử học tập</h2><button class="text-btn" id="exportBtn">Xuất dữ liệu JSON ↗</button></div><div class="table-wrap"><table><thead><tr><th>Ngày / giờ</th><th>Hoạt động</th><th>Thời lượng</th><th>Phần thưởng</th></tr></thead><tbody id="historyTable"></tbody></table></div></article></section>

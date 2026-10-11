@@ -147,3 +147,467 @@
 
 })();
 
+/* STUDY RPG QUIZ FIX PACK */
+(() => {
+  "use strict";
+
+  const $ = id => document.getElementById(id);
+  const APP_KEY = "studyRPGUltra";
+  const API_KEY = "studyRPGGeminiApiKey";
+  const SESSION_KEY = "studyRPGGeminiApiKeySession";
+
+  const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    '"': "&quot;", "'": "&#39;"
+  }[c]));
+
+  const readApp = () => {
+    try {
+      const value = JSON.parse(localStorage.getItem(APP_KEY) || "{}");
+      return value && typeof value === "object" ? value : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const writeApp = value => {
+    localStorage.setItem(APP_KEY, JSON.stringify(value));
+    window.dispatchEvent(new CustomEvent("study-rpg-local-change"));
+  };
+
+  const todayKey = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  // Bổ sung lựa chọn lớp 1–5, không xóa lựa chọn cũ.
+  function addPrimaryGrades() {
+    const grade = $("aiQuizGrade");
+    if (!grade) return;
+
+    const existing = new Set([...grade.options].map(o => o.value));
+
+    for (const value of ["Lớp 5", "Lớp 4", "Lớp 3", "Lớp 2", "Lớp 1"]) {
+      if (!existing.has(value)) {
+        grade.insertAdjacentHTML(
+          "afterbegin",
+          `<option value="${value}">${value}</option>`
+        );
+      }
+    }
+  }
+
+  // Thêm nút lưu API key.
+  function setupApiKeySave() {
+    const input = $("aiQuizKey");
+    if (!input || $("studyRPGSaveKeyBtn")) return;
+
+    const label = input.closest("label");
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.id = "studyRPGSaveKeyBtn";
+    button.className = "secondary-btn";
+    button.textContent = "💾 Lưu API key trên máy này";
+    button.style.marginTop = "8px";
+
+    const status = document.createElement("p");
+    status.id = "studyRPGKeyStatus";
+    status.className = "muted aiquiz-note";
+    status.setAttribute("aria-live", "polite");
+
+    if (label) {
+      label.insertAdjacentElement("afterend", button);
+      button.insertAdjacentElement("afterend", status);
+    }
+
+    const show = message => {
+      status.textContent = message;
+    };
+
+    try {
+      const saved = localStorage.getItem(API_KEY);
+      const temporary = sessionStorage.getItem(SESSION_KEY);
+
+      input.value = saved || temporary || input.value || "";
+
+      show(
+        saved ? "✓ API key đã lưu trên trình duyệt này."
+        : temporary ? "⚠ API key chỉ được giữ trong phiên hiện tại."
+        : "Nhập API key rồi nhấn nút Lưu."
+      );
+    } catch {
+      show("Trình duyệt đang hạn chế lưu dữ liệu.");
+    }
+
+    const save = () => {
+      const key = input.value.trim();
+
+      try {
+        if (!key) {
+          localStorage.removeItem(API_KEY);
+          sessionStorage.removeItem(SESSION_KEY);
+          show("Đã xóa API key đã lưu.");
+          return;
+        }
+
+        localStorage.setItem(API_KEY, key);
+
+        if (localStorage.getItem(API_KEY) !== key) {
+          throw new Error("Không xác minh được");
+        }
+
+        try {
+          sessionStorage.removeItem(SESSION_KEY);
+        } catch {}
+
+        show("✓ Đã lưu API key trên trình duyệt này. Không chia sẻ key.");
+      } catch {
+        try {
+          sessionStorage.setItem(SESSION_KEY, key);
+          show("⚠ Chỉ lưu được API key trong phiên hiện tại.");
+        } catch {
+          show("⚠ Trình duyệt chặn việc lưu API key.");
+        }
+      }
+    };
+
+    button.addEventListener("click", save);
+    input.addEventListener("change", save);
+    input.addEventListener("blur", save);
+  }
+
+  // Phân loại kỹ năng để thống kê kết quả học tập.
+  function inferSkill(subject, topic, question) {
+    const text = `${topic || ""} ${question || ""}`.toLocaleLowerCase("vi");
+    const has = (...words) => words.some(word => text.includes(word));
+
+    if (subject === "Toán") {
+      if (has("phân thức", "rút gọn biểu thức", "mẫu thức"))
+        return "Phân thức đại số";
+      if (has("thales", "ta-lét", "tam giác đồng dạng", "đồng dạng"))
+        return "Định lý Thales & tam giác đồng dạng";
+      if (has("pythagore", "py-ta-go", "cạnh huyền"))
+        return "Định lý Pythagore";
+      if (has("phương trình", "ẩn số", "nghiệm của"))
+        return "Giải phương trình";
+      if (has("xác suất", "ngẫu nhiên", "khả năng xảy ra"))
+        return "Xác suất";
+      if (has("thể tích", "diện tích xung quanh"))
+        return "Hình học không gian";
+      if (has("góc", "đường phân giác"))
+        return "Góc & đường phân giác";
+      if (has("hàm số", "đồ thị"))
+        return "Hàm số và đồ thị";
+      if (has("tỉ lệ", "phần trăm", "quãng đường", "vận tốc"))
+        return "Toán thực tế";
+
+      return topic || "Tư duy và tính toán";
+    }
+
+    if (subject === "Tiếng Anh") {
+      if (has("tense", "thì hiện tại", "thì quá khứ", "thì tương lai"))
+        return "Ngữ pháp – thì";
+      if (has("vocabulary", "meaning of", "synonym", "antonym", "từ đồng nghĩa"))
+        return "Từ vựng";
+      if (has("reading", "đoạn văn", "according to the passage"))
+        return "Đọc hiểu";
+      if (has("passive", "bị động"))
+        return "Câu bị động";
+      if (has("conditional", "câu điều kiện"))
+        return "Câu điều kiện";
+
+      return topic || "Ngữ pháp & từ vựng";
+    }
+
+    if (subject === "Ngữ văn") {
+      if (has("biện pháp tu từ", "ẩn dụ", "hoán dụ", "nhân hóa", "so sánh"))
+        return "Biện pháp tu từ";
+      if (has("chủ đề", "nội dung chính", "thông điệp"))
+        return "Đọc hiểu văn bản";
+      if (has("tác giả", "xuất xứ", "hoàn cảnh sáng tác"))
+        return "Tác giả & tác phẩm";
+
+      return topic || "Đọc hiểu và cảm thụ";
+    }
+
+    return topic || `Kiến thức môn ${subject || "tổng hợp"}`;
+  }
+
+  // Lưu kết quả quiz vào dữ liệu chính của Study RPG.
+  function saveCompletedQuiz() {
+    const output = $("aiQuizOutput");
+
+    if (!output || !$("aiQuizAgain")) return;
+
+    const questions = [...output.querySelectorAll(".aiquiz-question")];
+    if (!questions.length) return;
+
+    const subject = $("aiQuizSubject")?.value || "Kiến thức tổng hợp";
+    const grade = $("aiQuizGrade")?.value || "";
+    const topic = $("aiQuizTopic")?.value.trim() || subject;
+
+    const skillsMap = new Map();
+    let correct = 0;
+    const total = questions.length;
+
+    for (const node of questions) {
+      const questionText =
+        node.querySelector("h3")?.innerText.replace(/^\s*\d+\.\s*/, "") || "";
+
+      const correctOption = node.querySelector(".aiquiz-option.correct");
+      const selectedCorrect = !!(
+        correctOption && correctOption.querySelector("input")?.checked
+      );
+
+      if (selectedCorrect) correct++;
+
+      const skill = inferSkill(subject, topic, questionText);
+      const current = skillsMap.get(skill) || {
+        name: skill,
+        correct: 0,
+        total: 0
+      };
+
+      current.total++;
+      if (selectedCorrect) current.correct++;
+      skillsMap.set(skill, current);
+    }
+
+    const result = {
+      id: `aiquiz-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      date: new Date().toISOString(),
+      grade,
+      subject,
+      topic,
+      difficulty: $("aiQuizDifficulty")?.value || "",
+      score: Math.round(correct / total * 100),
+      correct,
+      total,
+      skills: [...skillsMap.values()]
+    };
+
+    try {
+      const data = readApp();
+
+      data.quizHistory = Array.isArray(data.quizHistory) ? data.quizHistory : [];
+      data.history = Array.isArray(data.history) ? data.history : [];
+
+      if (data.quizHistory.some(q => q && q.id === result.id)) return;
+
+      data.quizHistory.unshift(result);
+      data.quizHistory = data.quizHistory.slice(0, 300);
+
+      data.history.unshift({
+        date: result.date,
+        type: "Quiz",
+        minutes: 0,
+        reward: 0,
+        score: result.score,
+        subject: result.subject,
+        topic: result.topic
+      });
+
+      data.history = data.history.slice(0, 150);
+
+      data.daily = data.daily && typeof data.daily === "object"
+        ? data.daily
+        : { date: todayKey(), done: [] };
+
+      if (data.daily.date !== todayKey()) {
+        data.daily = { date: todayKey(), done: [] };
+      }
+
+      data.daily.done = Array.isArray(data.daily.done) ? data.daily.done : [];
+
+      // Hoàn thành nhiệm vụ quiz và thưởng tối đa một lần mỗi ngày.
+      if (!data.daily.done.includes("quiz")) {
+        data.daily.done.push("quiz");
+        data.coins = Math.max(0, Number(data.coins) || 0) + 25;
+      }
+
+      writeApp(data);
+
+      const toast = $("toast");
+
+      if (toast) {
+        toast.textContent =
+          "✓ Đã lưu kết quả quiz và cập nhật nhiệm vụ học tập.";
+        toast.classList.add("show");
+
+        setTimeout(() => toast.classList.remove("show"), 3500);
+      }
+
+      // Tải lại để giao diện đọc dữ liệu vừa lưu.
+      setTimeout(() => location.reload(), 500);
+    } catch (error) {
+      console.error("Không thể lưu kết quả quiz:", error);
+      alert("Không lưu được kết quả quiz. Hãy kiểm tra bộ nhớ trình duyệt.");
+    }
+  }
+
+  // Theo dõi nút chấm bài của quiz AI.
+  function setupQuizTracking() {
+    document.addEventListener("click", event => {
+      const button = event.target.closest("#aiQuizSubmit");
+      if (!button) return;
+
+      setTimeout(() => {
+        if ($("aiQuizAgain")) saveCompletedQuiz();
+      }, 0);
+    }, true);
+  }
+
+  // Bảng phân tích điểm mạnh và kỹ năng cần ôn tập.
+  function renderSkillAnalysis() {
+    const dashboard = $("page-dashboard");
+    if (!dashboard) return;
+
+    let panel = $("studyRPGSkillPanel");
+
+    if (!panel) {
+      panel = document.createElement("article");
+      panel.id = "studyRPGSkillPanel";
+      panel.className = "panel glass";
+
+      panel.innerHTML = `
+        <div class="panel-heading">
+          <div>
+            <h2>🧠 Phân tích kỹ năng</h2>
+            <p class="muted">Thống kê từ các quiz AI đã hoàn thành</p>
+          </div>
+          <span class="muted" id="studyRPGSkillCount">0 quiz</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Môn</th>
+                <th>Kỹ năng / chủ đề</th>
+                <th>Đúng</th>
+                <th>Tổng</th>
+                <th>Tỉ lệ đúng</th>
+                <th>Nhận xét</th>
+              </tr>
+            </thead>
+            <tbody id="studyRPGSkillRows"></tbody>
+          </table>
+        </div>
+        <p class="muted" id="studyRPGSkillNote"></p>
+      `;
+
+      const anchor = dashboard.querySelector(".dashboard-grid");
+
+      if (anchor) {
+        anchor.insertAdjacentElement("afterend", panel);
+      } else {
+        dashboard.appendChild(panel);
+      }
+    }
+
+    const data = readApp();
+    const quizzes = Array.isArray(data.quizHistory) ? data.quizHistory : [];
+    const grouped = new Map();
+
+    for (const quiz of quizzes) {
+      if (!quiz || typeof quiz.score !== "number") continue;
+
+      const skills = Array.isArray(quiz.skills) && quiz.skills.length
+        ? quiz.skills
+        : [{
+            name: quiz.topic || "Chưa phân loại",
+            correct: Number(quiz.correct) || 0,
+            total: Number(quiz.total) || 0
+          }];
+
+      for (const skill of skills) {
+        const key =
+          `${quiz.subject || "Chưa rõ"}||${skill.name || quiz.topic || "Chưa phân loại"}`;
+
+        const row = grouped.get(key) || {
+          subject: quiz.subject || "Chưa rõ",
+          name: skill.name || quiz.topic || "Chưa phân loại",
+          correct: 0,
+          total: 0
+        };
+
+        row.correct += Number(skill.correct) || 0;
+        row.total += Number(skill.total) || 0;
+
+        grouped.set(key, row);
+      }
+    }
+
+    const body = $("studyRPGSkillRows");
+    if (!body) return;
+
+    const rows = [...grouped.values()].sort((a, b) =>
+      (a.total ? a.correct / a.total : 0) -
+      (b.total ? b.correct / b.total : 0)
+    );
+
+    body.innerHTML = rows.length
+      ? rows.map(row => {
+          const pct = row.total
+            ? Math.round(row.correct / row.total * 100)
+            : 0;
+
+          const note = pct >= 85
+            ? "Vững"
+            : pct >= 65
+              ? "Đang tiến bộ"
+              : "Cần ôn tập";
+
+          return `
+            <tr>
+              <td>${escapeHTML(row.subject)}</td>
+              <td>${escapeHTML(row.name)}</td>
+              <td>${row.correct}</td>
+              <td>${row.total}</td>
+              <td>${pct}%</td>
+              <td>${note}</td>
+            </tr>
+          `;
+        }).join("")
+      : `<tr><td colspan="6">Chưa có kết quả quiz được lưu. Hãy làm và chấm một quiz AI.</td></tr>`;
+
+    if ($("studyRPGSkillCount")) {
+      $("studyRPGSkillCount").textContent = `${quizzes.length} quiz`;
+    }
+
+    if ($("studyRPGSkillNote")) {
+      $("studyRPGSkillNote").textContent = quizzes.length
+        ? "Kỹ năng có tỉ lệ đúng thấp được đưa lên đầu để dễ chọn nội dung ôn tập."
+        : "Bảng sẽ tự cập nhật sau khi bạn hoàn thành quiz AI.";
+    }
+  }
+
+  addPrimaryGrades();
+  setupApiKeySave();
+  setupQuizTracking();
+  renderSkillAnalysis();
+
+  document.addEventListener("click", event => {
+    if (event.target.closest('[data-page="dashboard"],[data-goto="dashboard"]')) {
+      setTimeout(renderSkillAnalysis, 80);
+    }
+  });
+
+  window.addEventListener("study-rpg-local-change", () => {
+    setTimeout(renderSkillAnalysis, 80);
+  });
+
+  const observer = new MutationObserver(() => {
+    if ($("page-dashboard")?.classList.contains("active")) {
+      renderSkillAnalysis();
+    }
+  });
+
+  if (document.body) {
+    observer.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+  }
+})();

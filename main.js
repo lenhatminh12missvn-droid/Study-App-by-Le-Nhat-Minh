@@ -2,7 +2,15 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const todayKey = () => new Date().toLocaleDateString("en-CA");
-const weekKey = () => { const d=new Date(); const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); return d.toLocaleDateString("en-CA"); };
+const weekKey = () => {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const date = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${date}`;
+};
 const defaultData = () => ({
   coins:0,xp:0,level:1,streak:0,lastStudyDay:"",totalMinutes:0,sessions:0,quizHistory:[],history:[],
   daily:{date:todayKey(),done:[]},profile:{name:"Nhà thám hiểm",level:"THCS",schoolClass:"",examName:"",examDate:""},

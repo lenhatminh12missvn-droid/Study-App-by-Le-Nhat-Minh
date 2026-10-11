@@ -103,7 +103,7 @@
     try{
       const recent=quizHistory.slice(-160).map((q,i)=>`${i+1}. ${q}`).join('\n');
       const prompt=`Bạn là giáo viên ra đề chính xác bằng tiếng Việt. Tạo đúng ${count} câu hỏi trắc nghiệm cho ${grade}, môn ${subject}, chủ đề: ${topic}. Độ khó: ${difficulty}. Phù hợp chương trình phổ thông Việt Nam. Mỗi câu có đúng 4 lựa chọn, chỉ 1 đáp án đúng, không mơ hồ. Tuyệt đối tránh trùng lặp hoặc diễn đạt lại câu hỏi cũ bên dưới.\nCÂU ĐÃ DÙNG:\n${recent||'(chưa có)'}\nChỉ trả về JSON hợp lệ, không markdown, theo schema: {"questions":[{"question":"...","options":["...","...","...","..."],"answer":0,"explanation":"..."}]}. answer là chỉ số từ 0 đến 3.`;
-      const response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(apiKey),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json',temperature:0.9}})});
+      const response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key='+encodeURIComponent(apiKey),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json',temperature:0.9}})});
       const payload=await response.json();if(!response.ok)throw new Error(payload?.error?.message||`Gemini API lỗi (${response.status})`);
       const text=payload?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
       const data=JSON.parse(text.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));

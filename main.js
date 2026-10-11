@@ -18,7 +18,8 @@ function normalize(){
   data.coins=Math.max(0,Number(data.coins)||0); data.xp=Math.max(0,Number(data.xp)||0); data.level=Math.max(1,Number(data.level)||1);
 }
 normalize();
-function save(){try{localStorage.setItem("studyRPGUltra",JSON.stringify(data));}catch(e){toast("Không thể lưu dữ liệu: bộ nhớ trình duyệt có thể đã đầy.");}}
+function notifyCloudSync(){try{window.dispatchEvent(new CustomEvent("study-rpg-local-change"));}catch{}}
+function save(){try{localStorage.setItem("studyRPGUltra",JSON.stringify(data));notifyCloudSync();}catch(e){toast("Không thể lưu dữ liệu: bộ nhớ trình duyệt có thể đã đầy.");}}
 let toastTimeout;
 function toast(msg){const el=$("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove("show"),3000);}
 function safeText(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -33,7 +34,7 @@ const WEBSITE_STORAGE_KEY="studyRPGWebsiteLinks";
 let websiteLinks=[];
 try { const saved=JSON.parse(localStorage.getItem(WEBSITE_STORAGE_KEY)||"[]"); if(Array.isArray(saved)) websiteLinks=saved.filter(x=>x&&typeof x.name==="string"&&typeof x.url==="string"); } catch { websiteLinks=[]; }
 let activeWebsiteId=null;
-function saveWebsiteLinks(){try{localStorage.setItem(WEBSITE_STORAGE_KEY,JSON.stringify(websiteLinks));}catch{toast("Không thể lưu liên kết trong trình duyệt này.");}}
+function saveWebsiteLinks(){try{localStorage.setItem(WEBSITE_STORAGE_KEY,JSON.stringify(websiteLinks));notifyCloudSync();}catch{toast("Không thể lưu liên kết trong trình duyệt này.");}}
 function normalizeWebsiteUrl(value){
  const raw=String(value||"").trim();
  if(!raw)return "";

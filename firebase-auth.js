@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAZsQ8tpN8etdQCM4El43tVS0bXIW5C_NU",
@@ -40,6 +40,64 @@ let saveTimer = null;
 let saveInFlight = false;
 let saveAgain = false;
 let lastCloudFingerprint = '';
+let activeUser = null;
+
+
+function weeklyStudyXP(snapshot){
+  const history=Array.isArray(snapshot?.appData?.history)?snapshot.appData.history:[];
+  const cutoff=new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate()-6);
+  return history.reduce((sum,item)=>{
+    if(item?.type!=="Phiên học"||!item.date)return sum;
+    const date=new Date(item.date);
+    if(Number.isNaN(date.getTime())||date<cutoff)return sum;
+    return sum+Math.max(0,Number(item.minutes)||0)*2;
+  },0);
+}
+function safePublicName(user, appData){
+  const name=String(appData?.profile?.name||user.displayName||'Nhà thám hiểm').trim().slice(0,30);
+  return name||'Nhà thám hiểm';
+}
+async function publishLeaderboardProfile(user, snapshot){
+  if(!user||user.isAnonymous)return;
+  const appData=snapshot?.appData||{};
+  const equipped=Array.isArray(appData.avatars)?appData.avatars.find(a=>a.id===appData.equipped):null;
+  const publicProfile={
+    uid:user.uid,
+    displayName:safePublicName(user,appData),
+    avatar:equipped?.emoji||'🧑‍🚀',
+    level:Math.max(1,Number(appData.level)||1),
+    weeklyXP:weeklyStudyXP(snapshot),
+    streak:Math.max(0,Number(appData.streak)||0),
+    totalMinutes:Math.max(0,Number(appData.totalMinutes)||0),
+    updatedAt:serverTimestamp()
+  };
+  await setDoc(doc(db,'leaderboard',user.uid),publicProfile,{merge:true});
+}
+function leagueFor(xp){return xp>=1200?'💎 Diamond':xp>=700?'🥇 Gold':xp>=300?'🥈 Silver':'🥉 Bronze';}
+function escapeHTML(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function renderLeaderboard(){
+  const statusEl=document.getElementById('leaderboardStatus');
+  const listEl=document.getElementById('leaderboardList');
+  const leagueEl=document.getElementById('myLeague');
+  if(!statusEl||!listEl)return;
+  if(!activeUser){statusEl.textContent='Hãy đăng nhập Google để tham gia bảng xếp hạng.';listEl.innerHTML='<div class="empty-state">Đăng nhập Google để xem thứ hạng của bạn.</div>';if(leagueEl)leagueEl.textContent='Chưa xếp hạng';return;}
+  statusEl.textContent='Đang tải bảng xếp hạng…';
+  try{
+    const result=await getDocs(collection(db,'leaderboard'));
+    const rows=result.docs.map(s=>s.data()).filter(x=>x&&typeof x.uid==='string');
+    rows.sort((a,b)=>(Number(b.weeklyXP)||0)-(Number(a.weeklyXP)||0)||String(a.displayName||'').localeCompare(String(b.displayName||''),'vi'));
+    const mine=rows.find(x=>x.uid===activeUser.uid);
+    if(leagueEl)leagueEl.textContent=mine?leagueFor(Number(mine.weeklyXP)||0):'🥉 Bronze';
+    if(!rows.length){listEl.innerHTML='<div class="empty-state">Chưa có người tham gia. Hãy hoàn thành phiên học đầu tiên!</div>';statusEl.textContent='Chưa có dữ liệu xếp hạng.';return;}
+    listEl.innerHTML=rows.slice(0,50).map((row,index)=>{
+      const isMe=row.uid===activeUser.uid;
+      const medal=index===0?'🥇':index===1?'🥈':index===2?'🥉':String(index+1);
+      return `<div class="leaderboard-row${isMe?' me':''}"><div class="leaderboard-place">${medal}</div><div class="leaderboard-person"><div class="leaderboard-avatar">${escapeHTML(row.avatar||'🧑‍🚀')}</div><div style="min-width:0"><div class="leaderboard-name">${escapeHTML(row.displayName||'Nhà thám hiểm')}${isMe?' (Bạn)':''}</div><div class="leaderboard-meta">${leagueFor(Number(row.weeklyXP)||0)} · 🔥 ${Math.max(0,Number(row.streak)||0)} ngày streak</div></div></div><div class="leaderboard-score">${Math.max(0,Number(row.weeklyXP)||0)} XP<small>7 ngày gần nhất</small></div></div>`;
+    }).join('');
+    const myRank=rows.findIndex(x=>x.uid===activeUser.uid)+1;
+    statusEl.textContent=myRank?`Có ${rows.length} người tham gia · Bạn đang ở vị trí #${myRank}.`:`Có ${rows.length} người tham gia · Chưa có hồ sơ xếp hạng của bạn.`;
+  }catch(err){console.error('Leaderboard load error:',err);statusEl.textContent='Không tải được bảng xếp hạng. Kiểm tra Firestore Rules.';listEl.innerHTML='<div class="empty-state">Hãy kiểm tra quy tắc bảo mật Firestore và tải lại.</div>';}
+}
 
 function showGate(show=true){ gate?.classList.toggle('open', show); }
 openBtn?.addEventListener('click',()=>showGate(true));
@@ -98,6 +156,7 @@ async function loadOrInitializeCloud(user, db){
   const initial={...emptySnapshot(),...local};
   await setDoc(ref,{...initial,ownerUid:user.uid,ownerEmail:user.email||null,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   lastCloudFingerprint=fingerprint(initial);
+  await publishLeaderboardProfile(user, initial);
   announceSync(localSnapshotHasData(local)?'☁ Đã sao lưu dữ liệu trên máy lên tài khoản Google.':'☁ Đã bật đồng bộ cho tài khoản này.');
   return true;
 }
@@ -118,6 +177,7 @@ async function pushLocalSnapshot(){
         updatedAt:serverTimestamp()
       },{merge:true});
       lastCloudFingerprint=fp;
+      await publishLeaderboardProfile(syncUser, snapshot);
       announceSync('☁ Đã lưu dữ liệu lên đám mây.');
     } while(saveAgain);
   }catch(err){
@@ -136,6 +196,8 @@ try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  document.querySelectorAll('[data-page="leaderboard"]').forEach(btn=>btn.addEventListener('click',renderLeaderboard));
+  document.getElementById('refreshLeaderboard')?.addEventListener('click',renderLeaderboard);
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
@@ -167,7 +229,7 @@ try {
   window.addEventListener('storage',e=>{if(Object.values(KEYS).includes(e.key))scheduleCloudSave();});
 
   onAuthStateChanged(auth, async user => {
-    syncReady=false; syncUser=user; clearTimeout(saveTimer);
+    syncReady=false; syncUser=user; activeUser=user; clearTimeout(saveTimer);
     if (user) {
       openBtn.textContent = 'Tài khoản Google';
       emailEl.textContent = user.email || 'Đã đăng nhập';
@@ -182,12 +244,14 @@ try {
         // On the one-time reload, this marker prevents needless reloading loops.
         if(sessionStorage.getItem('studyRPGCloudReloadUid')===user.uid)sessionStorage.removeItem('studyRPGCloudReloadUid');
         syncReady=true;
+        await publishLeaderboardProfile(user, readLocalSnapshot());
       } catch(err) {
         console.error('Firestore initial sync error:',err);
         announceSync('Đăng nhập được nhưng chưa đồng bộ. Hãy kiểm tra Firestore đã bật và Rules đã lưu chưa.');
       }
     } else {
       syncReady=false;
+      activeUser=null;
       openBtn.textContent = 'Đăng nhập Google';
       emailEl.textContent = 'Chưa đăng nhập';
       signOutBtn.hidden = true;
@@ -199,3 +263,4 @@ try {
   console.error('Firebase initialization error:', err);
   announceSync('Không tải được Firebase SDK. Hãy kiểm tra Internet và mở ứng dụng qua website HTTPS.');
 }
+

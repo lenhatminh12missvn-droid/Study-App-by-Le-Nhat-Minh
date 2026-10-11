@@ -116,6 +116,31 @@
     }catch(err){$('aiQuizOutput').innerHTML=`<div class="empty-state"><strong>Không thể tạo quiz</strong><p>${escapeHTML(err.message||'Đã xảy ra lỗi. Hãy kiểm tra mạng và API key.')}</p><p class="muted">Nếu trình duyệt chặn yêu cầu khi mở file trực tiếp, hãy chạy ứng dụng qua localhost. Không chia sẻ API key cho người khác.</p></div>`;setQuizStatus('Có lỗi');}
     finally{button.disabled=false;button.textContent='✦ Tạo quiz mới';}
   }
+  
+  // Lưu Gemini API key trên trình duyệt hiện tại
+  const AI_KEY_STORAGE = 'studyRPGGeminiApiKey';
+
+  if ($('aiQuizKey')) {
+    try {
+      $('aiQuizKey').value =
+        localStorage.getItem(AI_KEY_STORAGE) || '';
+    } catch {}
+
+    $('aiQuizKey').addEventListener('input', () => {
+      try {
+        const key = $('aiQuizKey').value.trim();
+
+        if (key) {
+          localStorage.setItem(AI_KEY_STORAGE, key);
+        } else {
+          localStorage.removeItem(AI_KEY_STORAGE);
+        }
+      } catch {
+        toast('Không thể lưu API key trong trình duyệt này.');
+      }
+    });
+  }
+
   if($('aiQuizForm'))$('aiQuizForm').addEventListener('submit',generateAIQuiz);
   if($('aiQuizHistoryCount'))$('aiQuizHistoryCount').textContent=`${quizHistory.length} câu đã ghi nhận`;
   if($('aiQuizClearHistory'))$('aiQuizClearHistory').addEventListener('click',()=>{if(confirm('Xóa lịch sử câu hỏi đã dùng? Các quiz sau có thể tạo lại câu cũ.')){quizHistory=[];saveQuizHistory();toast('Đã xóa lịch sử câu hỏi.');}});

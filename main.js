@@ -28,6 +28,7 @@ function currentAvatar(){return data.avatars.find(a=>a.id===data.equipped)||data
 function clockTick(){const d=new Date();$("clock").textContent=d.toLocaleTimeString("vi-VN",{hour12:false});$("date").textContent=d.toLocaleDateString("vi-VN",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});$("dateLong").textContent=d.toLocaleDateString("vi-VN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});updateExamCountdown();}
 function go(page){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+page));document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));const labels={home:"Trang chủ",missions:"Nhiệm vụ",leaderboard:"Bảng xếp hạng",dashboard:"Thống kê",boss:"Boss tuần",avatar:"Avatar & hòm",shop:"Cửa hàng",achievements:"Thành tựu",profile:"Hồ sơ học tập",settings:"Cài đặt",studytools:"Liên kết trang web",calendar:"Lịch học"};$("pageCrumb").textContent=labels[page]||"Study RPG";window.scrollTo({top:0,behavior:"smooth"});renderPage(page);}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.page)));
+document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".dock-icon").forEach(icon=>{if(icon.dataset.dockPage===b.dataset.page)icon.setAttribute("aria-current","page");else icon.removeAttribute("aria-current");});}));
 
 // Personal website links are stored separately from the RPG progress data.
 const WEBSITE_STORAGE_KEY="studyRPGWebsiteLinks";
@@ -186,6 +187,16 @@ fillProfile();setAccent();clockTick();setInterval(clockTick,1000);setTimer();ren
 })();
 
 // macOS-like Dock shortcuts and menu-bar clock
-document.querySelectorAll('[data-dock-page]').forEach(btn=>btn.addEventListener('click',()=>{const target=btn.dataset.dockPage;const nav=document.querySelector(`.nav-link[data-page="${target}"]`);if(nav)nav.click();}));
+document.querySelectorAll('[data-dock-page]').forEach(btn=>btn.addEventListener('click',()=>{
+  const target=btn.dataset.dockPage;
+  const nav=document.querySelector(`.nav-link[data-page="${target}"]`);
+  if(!document.getElementById(`page-${target}`)){console.warn('Study RPG: missing page',target);return;}
+  if(nav) nav.click();
+  else document.querySelectorAll('.page').forEach(page=>page.classList.toggle('active',page.id===`page-${target}`));
+  document.querySelectorAll('.dock-icon').forEach(icon=>{
+    const active=icon.dataset.dockPage===target;
+    if(active) icon.setAttribute('aria-current','page'); else icon.removeAttribute('aria-current');
+  });
+}));
 function updateMacMenuClock(){const el=document.getElementById('macMenuClock');if(!el)return;const now=new Date();el.textContent=now.toLocaleDateString('vi-VN',{weekday:'short',day:'2-digit',month:'short'})+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 updateMacMenuClock();setInterval(updateMacMenuClock,30000);

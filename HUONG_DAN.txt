@@ -1,0 +1,6 @@
+BẢN STUDY RPG ĐÃ BỎ CHỌN ẢNH NỀN
+
+- Đã bỏ chọn ảnh từ máy, nhập URL hình nền, áp dụng/xóa hình nền và theme tự động theo ảnh.
+- Giữ nguyên nền macOS mặc định.
+- Các tùy chọn màu nhấn, phát sáng, giảm chuyển động, âm thanh và dữ liệu vẫn được giữ.
+- Giải nén thư mục study_rpg_god_mode, mở index.html để chạy thử.

@@ -2,20 +2,12 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const todayKey = () => new Date().toLocaleDateString("en-CA");
-const weekKey = () => {
-  const d = new Date();
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const date = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${date}`;
-};
+const weekKey = () => { const d=new Date(); const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); return d.toLocaleDateString("en-CA"); };
 const defaultData = () => ({
   coins:0,xp:0,level:1,streak:0,lastStudyDay:"",totalMinutes:0,sessions:0,quizHistory:[],history:[],
   daily:{date:todayKey(),done:[]},profile:{name:"Nhà thám hiểm",level:"THCS",schoolClass:"",examName:"",examDate:""},
   avatars:[{id:"astronaut",emoji:"🧑‍🚀",name:"Nhà du hành",rarity:"Common"}],equipped:"astronaut",
-  items:[],claimedBossWeek:"",settings:{accent:"blue",glow:true,motion:false,sound:false,autoTheme:true,wallpaper:"",wallpaperMode:""}
+  items:[],claimedBossWeek:"",settings:{accent:"blue",glow:true,motion:false,sound:false}
 });
 let data;
 try { data={...defaultData(),...JSON.parse(localStorage.getItem("studyRPGUltra")||"{}")}; } catch { data=defaultData(); }
@@ -26,24 +18,22 @@ function normalize(){
   data.coins=Math.max(0,Number(data.coins)||0); data.xp=Math.max(0,Number(data.xp)||0); data.level=Math.max(1,Number(data.level)||1);
 }
 normalize();
-function notifyCloudSync(){try{window.dispatchEvent(new CustomEvent("study-rpg-local-change"));}catch{}}
-function save(){try{localStorage.setItem("studyRPGUltra",JSON.stringify(data));notifyCloudSync();}catch(e){toast("Không thể lưu dữ liệu: bộ nhớ trình duyệt có thể đã đầy.");}}
+function save(){try{localStorage.setItem("studyRPGUltra",JSON.stringify(data));}catch(e){toast("Không thể lưu dữ liệu: bộ nhớ trình duyệt có thể đã đầy.");}}
 let toastTimeout;
 function toast(msg){const el=$("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove("show"),3000);}
 function safeText(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 const rankFor = n => n>=100?"SSS":n>=90?"S+":n>=80?"S":n>=70?"A":n>=50?"B":"C";
 function currentAvatar(){return data.avatars.find(a=>a.id===data.equipped)||data.avatars[0]||{emoji:"🧑‍🚀",name:"Nhà du hành"};}
 function clockTick(){const d=new Date();$("clock").textContent=d.toLocaleTimeString("vi-VN",{hour12:false});$("date").textContent=d.toLocaleDateString("vi-VN",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});$("dateLong").textContent=d.toLocaleDateString("vi-VN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});updateExamCountdown();}
-function go(page){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+page));document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));const labels={home:"Trang chủ",missions:"Nhiệm vụ",leaderboard:"Bảng xếp hạng",dashboard:"Thống kê",boss:"Boss tuần",avatar:"Avatar & hòm",shop:"Cửa hàng",achievements:"Thành tựu",profile:"Hồ sơ học tập",settings:"Cài đặt",studytools:"Liên kết trang web",calendar:"Lịch học"};$("pageCrumb").textContent=labels[page]||"Study RPG";window.scrollTo({top:0,behavior:"smooth"});renderPage(page);}
+function go(page){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+page));document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));const labels={home:"Trang chủ",missions:"Nhiệm vụ",dashboard:"Thống kê",boss:"Boss tuần",avatar:"Avatar & hòm",shop:"Cửa hàng",achievements:"Thành tựu",profile:"Hồ sơ học tập",settings:"Cài đặt",studytools:"Liên kết trang web",calendar:"Lịch học"};$("pageCrumb").textContent=labels[page]||"Study RPG";window.scrollTo({top:0,behavior:"smooth"});renderPage(page);}
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.page)));
-document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".dock-icon").forEach(icon=>{if(icon.dataset.dockPage===b.dataset.page)icon.setAttribute("aria-current","page");else icon.removeAttribute("aria-current");});}));
 
 // Personal website links are stored separately from the RPG progress data.
 const WEBSITE_STORAGE_KEY="studyRPGWebsiteLinks";
 let websiteLinks=[];
 try { const saved=JSON.parse(localStorage.getItem(WEBSITE_STORAGE_KEY)||"[]"); if(Array.isArray(saved)) websiteLinks=saved.filter(x=>x&&typeof x.name==="string"&&typeof x.url==="string"); } catch { websiteLinks=[]; }
 let activeWebsiteId=null;
-function saveWebsiteLinks(){try{localStorage.setItem(WEBSITE_STORAGE_KEY,JSON.stringify(websiteLinks));notifyCloudSync();}catch{toast("Không thể lưu liên kết trong trình duyệt này.");}}
+function saveWebsiteLinks(){try{localStorage.setItem(WEBSITE_STORAGE_KEY,JSON.stringify(websiteLinks));}catch{toast("Không thể lưu liên kết trong trình duyệt này.");}}
 function normalizeWebsiteUrl(value){
  const raw=String(value||"").trim();
  if(!raw)return "";
@@ -106,7 +96,11 @@ function playTone(){try{const ctx=new (window.AudioContext||window.webkitAudioCo
 $("startBtn").addEventListener("click",startTimer);$("pauseBtn").addEventListener("click",()=>{clearInterval(timer.interval);timer.running=false;updateTimerDisplay();});$("resetBtn").addEventListener("click",setTimer);$("studyMinutes").addEventListener("change",()=>{if(!timer.running)setTimer();});$("breakMinutes").addEventListener("change",()=>{});
 function renderMissions(){$("missionSummary").innerHTML=[["Hôm nay",`${data.daily.done.length}/3`,"Nhiệm vụ hoàn thành"],["Phiên học",data.sessions,"Tổng số phiên"],["Quiz",data.quizHistory.length,"Bài kiểm tra đã làm"]].map(x=>`<article class="stat-card glass"><span>${x[0]}</span><strong>${x[1]}</strong><small>${x[2]}</small></article>`).join("");$("missionList").innerHTML=quests.map(q=>`<article class="mission-card glass"><div class="mission-emoji">${q.emoji}</div><h3>${q.title}</h3><p>${q.desc}</p><div class="mission-bottom"><span class="quest-reward">${q.reward}</span><button class="${questDone(q.id)?"secondary-btn":"primary-btn"}" data-claim="${q.id}" ${questDone(q.id)?"disabled":""}>${questDone(q.id)?"Đã hoàn thành":"Nhận thưởng"}</button></div></article>`).join("");document.querySelectorAll("[data-claim]").forEach(b=>b.addEventListener("click",()=>claimQuest(b.dataset.claim)));}
 function claimQuest(id){if(questDone(id)){toast("Nhiệm vụ đã hoàn thành rồi.");return;}if(id==="session"&&data.sessions===0){toast("Hãy hoàn thành một phiên học trước nhé.");return;}if(id==="minutes"){const mins=data.history.filter(h=>h.type==="Phiên học"&&h.date.slice(0,10)===todayKey()).reduce((s,h)=>s+h.minutes,0);if(mins<45){toast("Bạn cần học đủ 45 phút hôm nay.");return;}}if(id==="quiz"&&!data.daily.done.includes("quiz")){toast("Hãy hoàn thành quiz trước nhé.");return;}data.daily.done.push(id);const q=quests.find(x=>x.id===id);data.coins+=parseInt((q.reward.match(/\d+/)||[0])[0]);save();renderUI();toast("🎯 Đã nhận thưởng nhiệm vụ!");}
-// Quiz luyện tập nhanh cũ đã được gỡ; sử dụng trang Quiz AI thay thế.
+const quizQuestions=[{q:"Một giờ có bao nhiêu phút?",a:["30 phút","60 phút","90 phút","100 phút"],correct:1},{q:"Kết quả của 7 × 8 là?",a:["54","56","64","48"],correct:1},{q:"Nước đóng băng ở khoảng bao nhiêu độ C?",a:["0°C","10°C","50°C","100°C"],correct:0},{q:"Từ nào là danh từ?",a:["Nhanh","Đẹp","Học sinh","Chạy"],correct:2},{q:"Một tuần có bao nhiêu ngày?",a:["5","6","7","8"],correct:2}];let quiz={order:[],index:0,score:0,answered:false};
+$("startQuizBtn").addEventListener("click",()=>{quiz={order:[...quizQuestions.keys()].sort(()=>Math.random()-.5),index:0,score:0,answered:false};renderQuizQuestion();});
+function renderQuizQuestion(){const q=quizQuestions[quiz.order[quiz.index]];$("quizArea").innerHTML=`<div class="muted">Câu ${quiz.index+1}/${quiz.order.length}</div><div class="quiz-question">${q.q}</div><div class="quiz-options">${q.a.map((v,i)=>`<button class="quiz-option" data-answer="${i}">${String.fromCharCode(65+i)}. ${v}</button>`).join("")}</div><div id="quizFeedback" class="quiz-feedback"></div>`;document.querySelectorAll("[data-answer]").forEach(b=>b.addEventListener("click",()=>answerQuiz(Number(b.dataset.answer))));}
+function answerQuiz(n){if(quiz.answered)return;quiz.answered=true;const q=quizQuestions[quiz.order[quiz.index]],correct=n===q.correct;if(correct)quiz.score++;document.querySelectorAll("[data-answer]").forEach(b=>{b.disabled=true;if(Number(b.dataset.answer)===q.correct)b.style.borderColor="var(--green)";});$("quizFeedback").textContent=correct?"Chính xác!":"Chưa đúng. Đáp án: "+q.a[q.correct];const next=document.createElement("button");next.className="primary-btn";next.style.marginTop="12px";next.textContent=quiz.index===quiz.order.length-1?"Xem kết quả":"Câu tiếp theo →";next.onclick=()=>{quiz.index++;quiz.answered=false;if(quiz.index<quiz.order.length)renderQuizQuestion();else finishQuiz();};$("quizArea").append(next);}
+function finishQuiz(){const score=Math.round(quiz.score/quiz.order.length*100);data.quizHistory.push({score,date:new Date().toISOString()});data.coins+=score>=80?40:20;data.xp+=score;while(data.xp>=data.level*100){data.xp-=data.level*100;data.level++;}if(!questDone("quiz"))data.daily.done.push("quiz");recordActivity("Quiz",0,score>=80?40:20);save();$("quizArea").innerHTML=`<div class="quiz-question">🏆 Bạn đạt ${score}/100 — Rank ${rankFor(score)}</div><p class="muted">Đúng ${quiz.score}/${quiz.order.length} câu. Bạn nhận được ${score>=80?40:20} S-Coins và ${score} XP.</p><button class="primary-btn" id="againQuiz">Làm lại quiz</button>`;$("againQuiz").onclick=()=>$("startQuizBtn").click();renderUI();toast("Quiz đã được lưu vào lịch sử!");}
 function renderDashboard(){const avg=data.quizHistory.length?Math.round(data.quizHistory.reduce((s,q)=>s+q.score,0)/data.quizHistory.length):0;const weekStart=new Date();weekStart.setHours(0,0,0,0);weekStart.setDate(weekStart.getDate()-6);const weekMinutes=data.history.filter(h=>h.type==="Phiên học"&&new Date(h.date)>=weekStart).reduce((s,h)=>s+h.minutes,0);const dailyAverage=Math.round(weekMinutes/7);$("dashboardStats").innerHTML=[["⏱️","Tổng phút học",data.totalMinutes],["🎯","Phiên hoàn thành",data.sessions],["🧠","Điểm quiz TB",avg+"/100"],["🏆","Rank hiện tại",rankFor(avg)],["📆","7 ngày gần nhất",weekMinutes+" phút"],["📈","Trung bình/ngày",dailyAverage+" phút"]].map(x=>`<article class="stat-card glass"><div class="stat-icon cyan">${x[0]}</div><span>${x[1]}</span><strong>${x[2]}</strong></article>`).join("");const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toLocaleDateString("en-CA");const mins=data.history.filter(h=>h.type==="Phiên học"&&h.date.slice(0,10)===key).reduce((s,h)=>s+h.minutes,0);days.push({label:d.toLocaleDateString("vi-VN",{weekday:"short"}),mins});}const max=Math.max(30,...days.map(d=>d.mins));$("weeklyChart").innerHTML=days.map(d=>`<div class="chart-col"><b>${d.mins}</b><div class="chart-bar-wrap"><div class="chart-bar" style="height:${Math.max(d.mins?4:0,d.mins/max*100)}%"></div></div><small>${d.label}</small></div>`).join("");const longest=Math.max(0,...data.history.filter(h=>h.type==="Phiên học").map(h=>h.minutes));$("personalRecords").innerHTML=[["Chuỗi streak hiện tại",data.streak+" ngày"],["Phiên học hoàn thành",data.sessions],["Phiên học dài nhất",longest+" phút"],["Điểm quiz cao nhất",Math.max(0,...data.quizHistory.map(q=>q.score))+"/100"]].map(x=>`<div class="record-row"><span>${x[0]}</span><b>${x[1]}</b></div>`).join("");$("historyTable").innerHTML=data.history.length?data.history.slice(0,30).map(h=>`<tr><td>${new Date(h.date).toLocaleString("vi-VN")}</td><td>${safeText(h.type)}</td><td>${h.minutes} phút</td><td>+${h.reward} 🪙</td></tr>`).join(""):'<tr><td colspan="4">Chưa có dữ liệu học tập.</td></tr>';}
 $("exportBtn").addEventListener("click",downloadBackup);$("backupBtn").addEventListener("click",downloadBackup);
 function downloadBackup(){const bundle={app:"Study RPG macOS",version:2,exportedAt:new Date().toISOString(),data,websiteLinks:JSON.parse(localStorage.getItem("studyRPGWebsiteLinks")||"[]"),calendarEvents:JSON.parse(localStorage.getItem("studyRPGCalendarEvents")||"[]")};const blob=new Blob([JSON.stringify(bundle,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="study-rpg-full-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Đã xuất bản sao lưu đầy đủ.");}
@@ -132,79 +126,17 @@ function applySettings(){
  $("glowToggle").checked=!!data.settings.glow;
  $("motionToggle").checked=!!data.settings.motion;
  $("soundToggle").checked=!!data.settings.sound;
- $("autoThemeToggle").checked=data.settings.autoTheme!==false;
- applySavedWallpaper();
 }
 const accents={blue:["#6ea8fe","#9b8cff"],purple:["#b197fc","#7c6af2"],green:["#4de0ae","#72d6a5"],pink:["#ff8fc7","#b197fc"]};
 $("accentSelect").addEventListener("change",()=>{data.settings.accent=$("accentSelect").value;setAccent();save();applySettings();});
 function setAccent(){const c=accents[data.settings.accent]||accents.blue;document.documentElement.style.setProperty("--accent",c[0]);document.documentElement.style.setProperty("--accent2",c[1]);}
 $("glowToggle").addEventListener("change",()=>{data.settings.glow=$("glowToggle").checked;save();applySettings();});$("motionToggle").addEventListener("change",()=>{data.settings.motion=$("motionToggle").checked;save();applySettings();});$("soundToggle").addEventListener("change",()=>{data.settings.sound=$("soundToggle").checked;save();});
-// Wallpaper image is stored locally as a data URL; theme brightness is estimated from image pixels.
-function setThemeStatus(message){const el=$("themeStatus");if(el)el.textContent=message;}
-function useWallpaper(url, persist=true){
- if(!url){data.settings.wallpaper="";data.settings.wallpaperMode="";document.body.classList.remove("wallpaper-active","theme-light");document.body.style.removeProperty("--wallpaper-image");document.body.style.removeProperty("--wallpaper-tint");document.body.style.removeProperty("--wallpaper-overlay");if(persist)save();setThemeStatus("Đã xóa hình nền. Đang dùng nền mặc định.");return;}
- const img=new Image();
- img.onload=()=>{
-   let light=0.5;
-   try{
-     const canvas=document.createElement("canvas");canvas.width=32;canvas.height=32;
-     const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.drawImage(img,0,0,32,32);
-     const px=ctx.getImageData(0,0,32,32).data;let sum=0,count=0;
-     for(let i=0;i<px.length;i+=4){sum+=(0.2126*px[i]+0.7152*px[i+1]+0.0722*px[i+2]);count++;}
-     light=(sum/count)/255;
-   }catch(e){setThemeStatus("Không đọc được độ sáng ảnh từ URL này; vẫn đặt hình nền. Hãy tải ảnh về rồi chọn từ máy để phân tích chính xác hơn.");}
-   document.body.style.setProperty("--wallpaper-image",`url("${url.replace(/"/g,"%22")}")`);
-   document.body.style.setProperty("--wallpaper-tint",light>0.62?"rgba(255,255,255,.16)":"rgba(5,9,18,.34)");
-   document.body.classList.add("wallpaper-active");
-   if(data.settings.autoTheme!==false){
-     const lightTheme=light>0.56;
-     document.body.classList.toggle("theme-light",lightTheme);
-     data.settings.wallpaperMode=lightTheme?"light":"dark";
-     setThemeStatus(`Theme tự động: ${lightTheme?"SÁNG":"TỐI"} · Độ sáng ảnh ${(light*100).toFixed(0)}%.`);
-   }else{
-     document.body.classList.toggle("theme-light",data.settings.wallpaperMode==="light");
-     setThemeStatus("Đã áp dụng hình nền. Theme tự động đang tắt.");
-   }
-   if(persist){data.settings.wallpaper=url;save();}
- };
- img.onerror=()=>{setThemeStatus("Không tải được ảnh. Kiểm tra URL hoặc thử chọn ảnh trực tiếp từ máy.");toast("Không thể tải hình nền này.");};
- img.src=url;
-}
-function applySavedWallpaper(){
- const url=data.settings.wallpaper||"";
- if(url){if($("wallpaperUrl")&&$("wallpaperUrl").value!==url&&!url.startsWith("data:"))$("wallpaperUrl").value=url;useWallpaper(url,false);}
- else{document.body.classList.remove("wallpaper-active","theme-light");document.body.style.removeProperty("--wallpaper-image");document.body.style.removeProperty("--wallpaper-tint");}
-}
-$("wallpaperFile").addEventListener("change",e=>{
- const file=e.target.files&&e.target.files[0];if(!file)return;
- if(!file.type.startsWith("image/")){toast("Hãy chọn tệp hình ảnh.");return;}
- if(file.size>3*1024*1024){toast("Ảnh tối đa 3 MB để tránh đầy bộ nhớ trình duyệt.");return;}
- const reader=new FileReader();reader.onload=()=>useWallpaper(String(reader.result),true);reader.readAsDataURL(file);
-});
-$("applyWallpaperUrl").addEventListener("click",()=>{const url=$("wallpaperUrl").value.trim();if(!url){toast("Nhập URL hình nền trước.");return;}if(!/^https?:\/\//i.test(url)){toast("URL ảnh cần bắt đầu bằng http:// hoặc https://");return;}useWallpaper(url,true);});
-$("removeWallpaperBtn").addEventListener("click",()=>{useWallpaper("");$("wallpaperUrl").value="";$("wallpaperFile").value="";});
-$("autoThemeToggle").addEventListener("change",()=>{
- data.settings.autoTheme=$("autoThemeToggle").checked;save();
- if(data.settings.wallpaper){useWallpaper(data.settings.wallpaper,false);}
- else setThemeStatus(data.settings.autoTheme?"Theme tự động bật; chọn hình nền để phân tích độ sáng.":"Theme tự động đã tắt.");
-});
-
 $("resetDataBtn").addEventListener("click",()=>{if(confirm("Bạn chắc chắn muốn xóa toàn bộ dữ liệu Study RPG trên trình duyệt này? Hành động không thể hoàn tác.")){localStorage.removeItem("studyRPGUltra");data=defaultData();normalize();save();fillProfile();setTimer();renderUI();toast("Đã đặt lại dữ liệu.");go("home");}});
 function renderPage(page){if(page==="missions")renderMissions();if(page==="dashboard")renderDashboard();if(page==="boss")renderBoss();if(page==="avatar")renderAvatar();if(page==="shop")renderShop();if(page==="achievements")renderAchievements();}
 fillProfile();setAccent();clockTick();setInterval(clockTick,1000);setTimer();renderUI();updateTimerDisplay();
 })();
 
 // macOS-like Dock shortcuts and menu-bar clock
-document.querySelectorAll('[data-dock-page]').forEach(btn=>btn.addEventListener('click',()=>{
-  const target=btn.dataset.dockPage;
-  const nav=document.querySelector(`.nav-link[data-page="${target}"]`);
-  if(!document.getElementById(`page-${target}`)){console.warn('Study RPG: missing page',target);return;}
-  if(nav) nav.click();
-  else document.querySelectorAll('.page').forEach(page=>page.classList.toggle('active',page.id===`page-${target}`));
-  document.querySelectorAll('.dock-icon').forEach(icon=>{
-    const active=icon.dataset.dockPage===target;
-    if(active) icon.setAttribute('aria-current','page'); else icon.removeAttribute('aria-current');
-  });
-}));
+document.querySelectorAll('[data-dock-page]').forEach(btn=>btn.addEventListener('click',()=>{const target=btn.dataset.dockPage;const nav=document.querySelector(`.nav-link[data-page="${target}"]`);if(nav)nav.click();}));
 function updateMacMenuClock(){const el=document.getElementById('macMenuClock');if(!el)return;const now=new Date();el.textContent=now.toLocaleDateString('vi-VN',{weekday:'short',day:'2-digit',month:'short'})+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 updateMacMenuClock();setInterval(updateMacMenuClock,30000);

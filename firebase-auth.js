@@ -263,4 +263,3 @@ try {
   console.error('Firebase initialization error:', err);
   announceSync('Không tải được Firebase SDK. Hãy kiểm tra Internet và mở ứng dụng qua website HTTPS.');
 }
-

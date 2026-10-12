@@ -11,7 +11,7 @@
   try { const saved=JSON.parse(localStorage.getItem(CAL_KEY)||'[]'); if(Array.isArray(saved)) events=saved.filter(e=>e&&typeof e.title==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(e.date)); } catch {}
   let viewed=new Date(); viewed.setDate(1);
   let selectedDate=today();
-  const saveEvents=()=>localStorage.setItem(CAL_KEY,JSON.stringify(events));
+  const saveEvents=()=>{localStorage.setItem(CAL_KEY,JSON.stringify(events));window.dispatchEvent(new CustomEvent('study-rpg-local-change'));};
   const monthKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   const dateLabel=value=>new Date(value+'T12:00:00').toLocaleDateString('vi-VN',{weekday:'long',day:'numeric',month:'long'});
   function renderCalendar(){
@@ -76,4 +76,49 @@
       alert('Đã khôi phục dữ liệu. Study RPG sẽ tải lại.');location.reload();
     }catch(err){alert('Không đọc được bản sao lưu. Hãy chọn file JSON được xuất từ Study RPG.');importInput.value='';}
   });
+
+
+  // AI quiz generator with persistent duplicate prevention.
+  const QUIZ_HISTORY_KEY='studyRPGAIQuizQuestionHistoryV1';
+  let quizHistory=[];
+  try{const raw=JSON.parse(localStorage.getItem(QUIZ_HISTORY_KEY)||'[]');if(Array.isArray(raw))quizHistory=raw.filter(x=>typeof x==='string').slice(-1000);}catch{}
+  let activeAIQuiz=[]; let quizSubmitted=false;
+  const normalizeQuestion=s=>String(s||'').toLocaleLowerCase('vi').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();
+  const saveQuizHistory=()=>{quizHistory=Array.from(new Set(quizHistory)).slice(-1000);localStorage.setItem(QUIZ_HISTORY_KEY,JSON.stringify(quizHistory));window.dispatchEvent(new CustomEvent('study-rpg-local-change'));if($('aiQuizHistoryCount'))$('aiQuizHistoryCount').textContent=`${quizHistory.length} câu đã ghi nhận`;};
+  const setQuizStatus=t=>{if($('aiQuizStatus'))$('aiQuizStatus').textContent=t;};
+  function renderAIQuiz(){
+    const out=$('aiQuizOutput');if(!out)return;
+    if(!activeAIQuiz.length){out.innerHTML='<div class="empty-state"><strong>Chưa có quiz</strong><p>Hãy chọn thiết lập và tạo quiz mới.</p></div>';return;}
+    const answered=activeAIQuiz.filter(q=>q.selected!==undefined).length;
+    out.innerHTML=`<div class="muted">${escapeHTML($('aiQuizGrade').value)} · ${escapeHTML($('aiQuizSubject').value)} · ${activeAIQuiz.length} câu${$('aiQuizTopic').value.trim()?' · '+escapeHTML($('aiQuizTopic').value.trim()):''}</div>`+
+      activeAIQuiz.map((q,i)=>`<div class="aiquiz-question"><h3>${i+1}. ${escapeHTML(q.question)}</h3><div class="aiquiz-options">${q.options.map((opt,j)=>`<label class="aiquiz-option ${quizSubmitted&&j===q.answer?'correct':''} ${quizSubmitted&&q.selected===j&&j!==q.answer?'wrong':''}"><input type="radio" name="aiq${i}" value="${j}" ${q.selected===j?'checked':''} ${quizSubmitted?'disabled':''}><span><b>${'ABCD'[j]}.</b> ${escapeHTML(opt)}</span></label>`).join('')}</div>${quizSubmitted?`<p class="aiquiz-explanation"><b>${q.selected===q.answer?'Chính xác!':'Đáp án: '+('ABCD'[q.answer])+'.'}</b> ${escapeHTML(q.explanation||'')}</p>`:''}</div>`).join('')+
+      (quizSubmitted?`<div class="aiquiz-score"><strong>Kết quả: ${activeAIQuiz.filter(q=>q.selected===q.answer).length}/${activeAIQuiz.length} câu đúng</strong><p class="muted">${Math.round(activeAIQuiz.filter(q=>q.selected===q.answer).length/activeAIQuiz.length*100)}% · Câu hỏi đã được ghi vào lịch sử chống trùng.</p></div><div class="aiquiz-actions"><button class="primary-btn" type="button" id="aiQuizAgain">Tạo quiz khác</button></div>`:`<div class="aiquiz-actions"><button class="primary-btn" type="button" id="aiQuizSubmit">Chấm điểm (${answered}/${activeAIQuiz.length} đã chọn)</button></div>`);
+    if(!quizSubmitted){out.querySelectorAll('input[type=radio]').forEach(el=>el.addEventListener('change',()=>{activeAIQuiz[Number(el.name.slice(3))].selected=Number(el.value);renderAIQuiz();}));$('aiQuizSubmit').addEventListener('click',()=>{if(activeAIQuiz.some(q=>q.selected===undefined)){toast('Hãy trả lời tất cả câu hỏi trước khi chấm.');return;}quizSubmitted=true;setQuizStatus('Đã chấm điểm');renderAIQuiz();});}
+    else $('aiQuizAgain').addEventListener('click',()=>$('aiQuizForm').requestSubmit());
+  }
+  async function generateAIQuiz(e){
+    e.preventDefault();const apiKey=$('aiQuizKey').value.trim();if(!apiKey){alert('Hãy nhập Gemini API key để tạo câu hỏi bằng AI. Key chỉ được giữ trong phiên hiện tại.');$('aiQuizKey').focus();return;}
+    const grade=$('aiQuizGrade').value,subject=$('aiQuizSubject').value,topic=$('aiQuizTopic').value.trim()||'các kiến thức trọng tâm phù hợp chương trình',count=Number($('aiQuizCount').value),difficulty=$('aiQuizDifficulty').value;
+    const button=$('aiQuizGenerate');button.disabled=true;button.textContent='Đang tạo câu hỏi…';setQuizStatus('Đang gọi AI');$('aiQuizOutput').innerHTML='<div class="aiquiz-loading"><span class="spinner"></span>AI đang soạn câu hỏi mới và kiểm tra lịch sử…</div>';
+    try{
+      const recent=quizHistory.slice(-160).map((q,i)=>`${i+1}. ${q}`).join('\n');
+      const prompt=`Bạn là giáo viên ra đề chính xác bằng tiếng Việt. Tạo đúng ${count} câu hỏi trắc nghiệm cho ${grade}, môn ${subject}, chủ đề: ${topic}. Độ khó: ${difficulty}. Phù hợp chương trình phổ thông Việt Nam. Mỗi câu có đúng 4 lựa chọn, chỉ 1 đáp án đúng, không mơ hồ. Tuyệt đối tránh trùng lặp hoặc diễn đạt lại câu hỏi cũ bên dưới.\nCÂU ĐÃ DÙNG:\n${recent||'(chưa có)'}\nChỉ trả về JSON hợp lệ, không markdown, theo schema: {"questions":[{"question":"...","options":["...","...","...","..."],"answer":0,"explanation":"..."}]}. answer là chỉ số từ 0 đến 3.`;
+      const response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(apiKey),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json',temperature:0.9}})});
+      const payload=await response.json();if(!response.ok)throw new Error(payload?.error?.message||`Gemini API lỗi (${response.status})`);
+      const text=payload?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+      const data=JSON.parse(text.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));
+      if(!Array.isArray(data.questions))throw new Error('AI không trả về danh sách câu hỏi hợp lệ.');
+      const seen=new Set(quizHistory.map(normalizeQuestion));
+      const fresh=data.questions.filter(q=>q&&typeof q.question==='string'&&Array.isArray(q.options)&&q.options.length===4&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<4&&!seen.has(normalizeQuestion(q.question)));
+      if(fresh.length<count){throw new Error(`AI chỉ tạo được ${fresh.length}/${count} câu mới không trùng lịch sử. Hãy đổi chủ đề hoặc xóa lịch sử nếu bạn muốn làm lại.`);}
+      activeAIQuiz=fresh.slice(0,count).map(q=>({question:q.question,options:q.options.map(String),answer:q.answer,explanation:String(q.explanation||''),selected:undefined}));
+      activeAIQuiz.forEach(q=>quizHistory.push(normalizeQuestion(q.question)));saveQuizHistory();quizSubmitted=false;setQuizStatus('Đã tạo '+activeAIQuiz.length+' câu mới');renderAIQuiz();toast('Đã tạo quiz mới, không trùng các câu đã lưu.');
+    }catch(err){$('aiQuizOutput').innerHTML=`<div class="empty-state"><strong>Không thể tạo quiz</strong><p>${escapeHTML(err.message||'Đã xảy ra lỗi. Hãy kiểm tra mạng và API key.')}</p><p class="muted">Nếu trình duyệt chặn yêu cầu khi mở file trực tiếp, hãy chạy ứng dụng qua localhost. Không chia sẻ API key cho người khác.</p></div>`;setQuizStatus('Có lỗi');}
+    finally{button.disabled=false;button.textContent='✦ Tạo quiz mới';}
+  }
+  if($('aiQuizForm'))$('aiQuizForm').addEventListener('submit',generateAIQuiz);
+  if($('aiQuizHistoryCount'))$('aiQuizHistoryCount').textContent=`${quizHistory.length} câu đã ghi nhận`;
+  if($('aiQuizClearHistory'))$('aiQuizClearHistory').addEventListener('click',()=>{if(confirm('Xóa lịch sử câu hỏi đã dùng? Các quiz sau có thể tạo lại câu cũ.')){quizHistory=[];saveQuizHistory();toast('Đã xóa lịch sử câu hỏi.');}});
+
 })();
+<script src="lessons.js"></script>
